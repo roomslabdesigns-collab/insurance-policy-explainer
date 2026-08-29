@@ -1,0 +1,29 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# --- Environment / secrets ---
+.env
+
+# --- Local model weights (large, downloadable — see README) ---
+models/*.gguf
+
+# --- Runtime-generated data (regenerates automatically on first run) ---
+data/indexes/
+data/logs/
+data/app.db
+
+# Uploaded policies: ignore everything EXCEPT the committed synthetic sample,
+# so a real policy someone tests with locally never accidentally gets committed.
+data/policies/*
+!data/policies/sample_health_policy.pdf
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

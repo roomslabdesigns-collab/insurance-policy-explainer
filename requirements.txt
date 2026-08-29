@@ -1,0 +1,26 @@
+# --- PDF processing ---
+pymupdf==1.24.11
+
+# --- Embeddings ---
+sentence-transformers==3.1.1
+# torch is installed separately (CPU-only wheel) before this file — see setup notes
+
+# --- Vector search ---
+faiss-cpu==1.9.0.post1
+
+# --- Local LLM runtime ---
+# llama-cpp-python is installed separately from a prebuilt-wheel index — see README setup notes.
+# (Installing it here via plain PyPI can trigger a from-source build requiring CMake/MSVC.)
+
+# --- UI ---
+streamlit==1.39.0
+
+# --- Analytics / evaluation ---
+pandas==2.2.3
+plotly==5.24.1
+
+# --- Utilities ---
+numpy>=1.26
+huggingface_hub==0.25.2
+requests>=2.31
+python-dotenv>=1.0

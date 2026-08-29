@@ -1,0 +1,78 @@
+"""Evaluation: retrieval testing (Phase 5) and full end-to-end pipeline
+evaluation with an analytics-ready report (Phase 11)."""
+
+from .end_to_end_evaluator import (
+    GOLDEN_E2E_DATASET_PATH,
+    evaluate_all,
+    evaluate_one,
+    load_golden_e2e_dataset,
+)
+from .metrics import (
+    ALL_CLASSIFICATIONS,
+    CLASS_APPROPRIATE_ABSTENTION,
+    CLASS_CITATION_FAILURE,
+    CLASS_CORRECT,
+    CLASS_INCORRECT,
+    CLASS_INCORRECT_ABSTENTION,
+    CLASS_VALIDATION_FAILURE,
+    CLASS_WRONG_BUT_CONFIDENT,
+    classify,
+    compute_summary_metrics,
+    determine_failure_stage,
+)
+from .reports import (
+    compare_runs,
+    generate_text_report,
+    get_latest_run_id,
+    get_previous_run_id,
+    list_runs,
+    load_run_results,
+    load_run_summary,
+    save_run,
+)
+from .retrieval_evaluator import (
+    GOLDEN_DATASET_PATH,
+    analyze_diversity,
+    analyze_threshold_candidates,
+    compute_category_metrics,
+    compute_overall_metrics,
+    evaluate_retrieval,
+    get_failures,
+    load_golden_dataset,
+    recommend_threshold,
+)
+
+__all__ = [
+    "ALL_CLASSIFICATIONS",
+    "CLASS_APPROPRIATE_ABSTENTION",
+    "CLASS_CITATION_FAILURE",
+    "CLASS_CORRECT",
+    "CLASS_INCORRECT",
+    "CLASS_INCORRECT_ABSTENTION",
+    "CLASS_VALIDATION_FAILURE",
+    "CLASS_WRONG_BUT_CONFIDENT",
+    "GOLDEN_DATASET_PATH",
+    "GOLDEN_E2E_DATASET_PATH",
+    "analyze_diversity",
+    "analyze_threshold_candidates",
+    "classify",
+    "compare_runs",
+    "compute_category_metrics",
+    "compute_overall_metrics",
+    "compute_summary_metrics",
+    "determine_failure_stage",
+    "evaluate_all",
+    "evaluate_one",
+    "evaluate_retrieval",
+    "generate_text_report",
+    "get_failures",
+    "get_latest_run_id",
+    "get_previous_run_id",
+    "list_runs",
+    "load_golden_dataset",
+    "load_golden_e2e_dataset",
+    "load_run_results",
+    "load_run_summary",
+    "recommend_threshold",
+    "save_run",
+]

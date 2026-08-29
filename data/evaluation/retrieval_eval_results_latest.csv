@@ -1,0 +1,35 @@
+question,category,expected_clause_number,is_unsupported,rank,reciprocal_rank,hit_top1,hit_top3,hit_top5,top1_clause,top1_section,top1_page,top1_score,top3_clauses,top5_unique_clauses,top5_unique_sections,notes
+Is dental treatment covered?,Coverage,2.3,False,1.0,1.0,True,True,True,2.3,SECTION 2: SCOPE OF COVER,3,0.7230379581451416,"2.3, 4.2(c), 4.2(a)",5,2,Semantic paraphrase test
+What does the policy cover for day care procedures?,Coverage,2.2,False,1.0,1.0,True,True,True,2.2,SECTION 2: SCOPE OF COVER,3,0.6167527437210083,"2.2, 2.1, 3.1",5,4,Paraphrase of Day Care Treatment
+Will hospital expenses be reimbursed?,Coverage,2.1,False,1.0,1.0,True,True,True,2.1,SECTION 2: SCOPE OF COVER,3,0.5384072661399841,"2.1, 4.3, 4.1",5,3,Paraphrase of Hospitalisation Expenses
+Are surgeries requiring less than 24 hours in hospital covered?,Coverage,2.2,False,1.0,1.0,True,True,True,2.2,SECTION 2: SCOPE OF COVER,3,0.5876660346984863,"2.2, 3.3, 4.3",5,3,"Semantic paraphrase, no keyword overlap with day care"
+Does the policy pay for hospitalisation costs?,Coverage,2.1,False,1.0,1.0,True,True,True,2.1,SECTION 2: SCOPE OF COVER,3,0.5601112842559814,"2.1, 4.3, 2.2",5,3,Paraphrase test
+What medical treatments are covered under this policy?,Coverage,2.1|2.2|2.3,False,1.0,1.0,True,True,True,2.2,SECTION 2: SCOPE OF COVER,3,0.5090428590774536,"2.2, 4.3, 4.2(c)",5,3,"Broad/ambiguous question, multiple valid answers"
+Is cosmetic surgery excluded?,Exclusion,4.1,False,1.0,1.0,True,True,True,4.1,SECTION 4: EXCLUSIONS,5,0.7361153364181519,"4.1, 4.2(c), 4.2(a)",5,1,Direct match
+Are routine dental check-ups covered?,Exclusion,4.2(a),False,1.0,1.0,True,True,True,4.2(a),SECTION 4: EXCLUSIONS,5,0.6551637649536133,"4.2(a), 2.3, 4.2(c)",5,2,"Coverage-phrased question, correct answer is an exclusion"
+Does the policy cover spectacles or contact lenses?,Exclusion,4.2(b),False,1.0,1.0,True,True,True,4.2(b),SECTION 4: EXCLUSIONS,5,0.6713659763336182,"4.2(b), 4.2, 4.1",5,3,"Coverage-phrased question, correct answer is an exclusion"
+Can I get reimbursed for hearing aids?,Exclusion,4.2(b),False,1.0,1.0,True,True,True,4.2(b),SECTION 4: EXCLUSIONS,5,0.3739124834537506,"4.2(b), 4.3, 4.1",5,2,Paraphrase
+What dental treatments are not covered?,Exclusion,4.2(c)|4.2(a),False,1.0,1.0,True,True,True,4.2(c),SECTION 4: EXCLUSIONS,5,0.6560951471328735,"4.2(c), 2.3, 4.2(a)",5,2,Overlaps with 4.2(a); either is acceptable
+What exclusions apply to this policy?,Exclusion,4.1|4.2(a)|4.2(b)|4.2(c)|4.3,False,1.0,1.0,True,True,True,4.2(a),SECTION 4: EXCLUSIONS,5,0.5309244394302368,"4.2(a), 4.2, 4.3",5,1,"Ambiguous/broad question, any Section 4 clause acceptable"
+Is dental treatment fully covered with no conditions?,Exclusion,2.3|4.2(c),False,1.0,1.0,True,True,True,2.3,SECTION 2: SCOPE OF COVER,3,0.6607807874679565,"2.3, 4.2(c), 4.2(a)",5,2,Exception-overrides-coverage test: coverage clause AND its exclusion must both be findable
+Is there a waiting period for pre-existing conditions?,Waiting Period,3.1,False,1.0,1.0,True,True,True,3.1,SECTION 3: WAITING PERIODS,4,0.6877931356430054,"3.1, 1.2, 1.3",5,2,Direct match
+How long do I have to wait before pre-existing disease treatment is covered?,Waiting Period,3.1,False,1.0,1.0,True,True,True,3.1,SECTION 3: WAITING PERIODS,4,0.750848114490509,"3.1, 1.2, 3.3",5,2,Paraphrase
+What is the initial waiting period for illnesses?,Waiting Period,3.2,False,1.0,1.0,True,True,True,3.2,SECTION 3: WAITING PERIODS,4,0.7977491021156311,"3.2, 1.3, 3.1",5,2,Direct match
+Is there a waiting period before any claims can be made?,Waiting Period,3.2,False,2.0,0.5,False,True,True,4.3,SECTION 4: EXCLUSIONS,5,0.5735800862312317,"4.3, 3.2, 3.1",5,3,"Paraphrase, no keyword overlap"
+What is the waiting period for cataract surgery?,Waiting Period,3.3,False,1.0,1.0,True,True,True,3.3,SECTION 3: WAITING PERIODS,4,0.7760483026504517,"3.3, 3.1, 1.3",5,3,Direct match
+Is there a waiting period for hernia treatment?,Waiting Period,3.3,False,1.0,1.0,True,True,True,3.3,SECTION 3: WAITING PERIODS,4,0.6539137363433838,"3.3, 1.3, 3.1",5,3,Paraphrase
+Are joint replacement surgeries covered immediately after buying the policy?,Waiting Period,3.3,False,3.0,0.3333333333333333,False,True,True,4.3,SECTION 4: EXCLUSIONS,5,0.49794530868530273,"4.3, 2.2, 3.3",5,3,Paraphrase testing that 'immediately' implies a waiting period exists
+What happens if I make a claim during the first year?,Claim Conditions,4.3,False,1.0,1.0,True,True,True,4.3,SECTION 4: EXCLUSIONS,5,0.5891015529632568,"4.3, 3.2, 1.2",5,4,Direct match
+Are claims payable if I get sick within 90 days of buying the policy?,Claim Conditions,4.3,False,1.0,1.0,True,True,True,4.3,SECTION 4: EXCLUSIONS,5,0.7021059989929199,"4.3, 3.2, 3.1",5,3,Paraphrase
+"If I have an accident in the first month, is the claim payable?",Claim Conditions,4.3,False,1.0,1.0,True,True,True,4.3,SECTION 4: EXCLUSIONS,5,0.6285700798034668,"4.3, 3.2, 4.1",5,4,Tests the accident-exception wording
+Who is considered an insured person under this policy?,Eligibility,1.1,False,1.0,1.0,True,True,True,1.1,SECTION 1: DEFINITIONS,2,0.7809609770774841,"1.1, 4.3, 2.1",5,5,Direct match
+What does waiting period mean in this policy?,Eligibility,1.3,False,1.0,1.0,True,True,True,1.3,SECTION 1: DEFINITIONS,2,0.7011034488677979,"1.3, 3.1, 3.2",5,3,Definitional lookup
+How is a pre-existing disease defined?,Eligibility,1.2,False,1.0,1.0,True,True,True,1.2,SECTION 1: DEFINITIONS,2,0.7771646976470947,"1.2, 3.1, 1.3",5,3,Definitional lookup
+What is the policy number?,General Conditions,PREAMBLE,False,1.0,1.0,True,True,True,(preamble),HEALTH SHIELD POLICY,1,0.5865346193313599,"(preamble), 1.1, 4.3",5,5,Tests retrieval of non-clause preamble text
+What year is this policy for?,General Conditions,PREAMBLE,False,2.0,0.5,False,True,True,4.3,SECTION 4: EXCLUSIONS,5,0.5513831377029419,"4.3, (preamble), 3.1",5,4,Paraphrase of policy year
+Does this policy cover space travel?,Unsupported,NONE,True,,0.0,False,False,False,4.3,SECTION 4: EXCLUSIONS,5,0.3264943063259125,"4.3, (preamble), 4.1",5,4,Topic not present anywhere in the policy
+Is maternity care covered under this policy?,Unsupported,NONE,True,,0.0,False,False,False,2.1,SECTION 2: SCOPE OF COVER,3,0.46258893609046936,"2.1, 2.2, 3.1",5,3,Topic not present anywhere in the policy
+Does the policy include international travel insurance?,Unsupported,NONE,True,,0.0,False,False,False,1.1,SECTION 1: DEFINITIONS,2,0.44740504026412964,"1.1, 2.1, 4.3",5,5,Topic not present anywhere in the policy
+Is pet insurance included?,Unsupported,NONE,True,,0.0,False,False,False,4.3,SECTION 4: EXCLUSIONS,5,0.364241361618042,"4.3, 2.1, 4.1",5,4,Topic not present anywhere in the policy
+What is the claim settlement ratio of this insurer?,Unsupported,NONE,True,,0.0,False,False,False,4.3,SECTION 4: EXCLUSIONS,5,0.4198729991912842,"4.3, 1.1, (preamble)",5,4,Real-world insurer info the policy document itself would not contain
+Does this policy cover COVID-19 treatment?,Unsupported,NONE,True,,0.0,False,False,False,3.1,SECTION 3: WAITING PERIODS,4,0.4762353003025055,"3.1, 4.3, (preamble)",5,5,Topic not present anywhere in the policy
