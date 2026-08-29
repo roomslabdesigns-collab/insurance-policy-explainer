@@ -4,12 +4,22 @@ Phase 1 verification script.
 Loads the local GGUF model directly via llama-cpp-python (no server needed for
 this smoke test) and runs one prompt. If this prints a coherent answer without
 crashing or swapping to disk for minutes, your environment is ready for Phase 2.
+
+Uses whichever model app/config.py currently points to (Qwen2.5-3B by
+default as of Phase 12), so this stays correct without hardcoding a filename
+that would silently drift from the project's actual default.
 """
 
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from llama_cpp import Llama
 
-MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "qwen2.5-1.5b-instruct-q4_k_m.gguf"
+from app import config
+
+MODEL_PATH = Path(config.LLM_MODEL_PATH)
 
 def main():
     if not MODEL_PATH.exists():

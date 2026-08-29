@@ -35,10 +35,19 @@ ALL_CLASSIFICATIONS = [
     CLASS_VALIDATION_FAILURE,
 ]
 
-# Statuses that represent the system declining to give a substantive
-# coverage/exclusion determination -- "Not Mentioned" is NOT included here:
-# it's a substantive (and often correct) answer, not an abstention.
-ABSTENTION_STATUSES = {"No Evidence Found", "Insufficient Evidence"}
+# Statuses that represent the system declining to assert a specific
+# coverage/exclusion determination. "Not Mentioned" IS included: it only
+# ever claims absence ("the policy doesn't address this"), never a
+# specific Covered/Excluded conclusion, so it is exactly as much of a
+# hedge as "Insufficient Evidence" -- it just names a different reason
+# (topic absent, vs. evidence ambiguous). An earlier version of this
+# constant excluded it, which meant a genuinely correct, safe "Not
+# Mentioned" answer to an unsupported question (e.g. "Is there a maternity
+# waiting period?" -> "There is no mention of this in the evidence") was
+# being scored as Wrong-but-Confident -- the single most safety-critical
+# metric in this whole evaluation -- purely from a classification gap, not
+# an actual dangerous answer. Found via the 3B-model comparison run.
+ABSTENTION_STATUSES = {"No Evidence Found", "Insufficient Evidence", "Not Mentioned"}
 
 STAGE_RETRIEVAL_FAILURE = "Retrieval Failure"
 STAGE_EVIDENCE_SELECTION_FAILURE = "Evidence Selection Failure"

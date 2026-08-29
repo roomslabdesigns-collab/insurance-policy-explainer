@@ -42,13 +42,25 @@ def _env_float(name: str, default: float) -> float:
 
 # --- Local LLM server (llama_cpp.server: an OpenAI-compatible REST API
 #     wrapping llama.cpp's inference engine) ---
+# Qwen2.5-3B-Instruct is the default as of the Phase 12 model comparison:
+# measured (on the same 41-question evaluation, after fixing an unrelated
+# evidence-ID parsing gap) to beat the earlier 1.5B default on every
+# accuracy metric -- Answer Accuracy 39.0% vs 34.1%, Citation Accuracy
+# 73.3% vs 66.7%, Appropriate Abstention 100% vs 85.7% -- while keeping an
+# identical, clean 0% Wrong-but-Confident rate. The cost is real: roughly
+# 2x the response time (~6.5s vs ~3.1s avg) and ~700MB more RAM. See
+# docs/evaluation.md for the full comparison. A lighter 1.5B option remains
+# available -- see README's "Sample Data" / setup notes for the download
+# command -- for machines where the extra RAM/latency isn't worth it.
 LLM_SERVER_URL = _env_str("LLM_SERVER_URL", "http://127.0.0.1:8000")
-LLM_MODEL_NAME = _env_str("LLM_MODEL_NAME", "qwen2.5-1.5b-instruct")
+LLM_MODEL_NAME = _env_str("LLM_MODEL_NAME", "qwen2.5-3b-instruct")
 LLM_MODEL_PATH = _env_str(
-    "LLM_MODEL_PATH", str(PROJECT_ROOT / "models" / "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+    "LLM_MODEL_PATH", str(PROJECT_ROOT / "models" / "qwen2.5-3b-instruct-q4_k_m.gguf")
 )
 LLM_CONTEXT_SIZE = _env_int("LLM_CONTEXT_SIZE", 2048)  # set when the SERVER starts, not per-request
-LLM_TIMEOUT_SECONDS = _env_int("LLM_TIMEOUT_SECONDS", 60)
+# 90s (not the earlier 60s): the 3B model occasionally needs more than 60s
+# on 8GB CPU-only hardware, observed directly during evaluation.
+LLM_TIMEOUT_SECONDS = _env_int("LLM_TIMEOUT_SECONDS", 90)
 LLM_MAX_TOKENS = _env_int("LLM_MAX_TOKENS", 300)
 LLM_TEMPERATURE = _env_float("LLM_TEMPERATURE", 0.1)  # low: this is grounded extraction, not creative writing
 

@@ -9,7 +9,7 @@
 "Are routine dental check-ups covered?","Explicitly Excluded","4.2(a)","5","","False","Exclusion","Coverage-phrased question, correct answer is an exclusion"
 "Does the policy cover spectacles or contact lenses?","Explicitly Excluded","4.2(b)","5","","False","Exclusion",""
 "Can I get reimbursed for hearing aids?","Explicitly Excluded","4.2(b)","5","","False","Exclusion",""
-"What dental treatments are not covered?","Explicitly Excluded","4.2(c)|4.2(a)","5","","False","Exclusion",""
+"What dental treatments are not covered?","Explicitly Excluded","4.2(c)|4.2(a)|2.3","5","","False","Exclusion","Clause 2.3 also states this exclusion directly (the policy repeats it in two places) -- citing it is genuinely correct, not a citation error"
 "Is there a waiting period for pre-existing conditions?","Covered","3.1","4","48","False","Waiting Period",""
 "How long do I have to wait before pre-existing disease treatment is covered?","Covered","3.1","4","48","False","Waiting Period","Paraphrase"
 "What is the initial waiting period for illnesses?","Covered","3.2","4","30","False","Waiting Period",""

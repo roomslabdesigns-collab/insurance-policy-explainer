@@ -43,7 +43,7 @@ flowchart TD
     UI --> PDF[PDF Processing<br/>PyMuPDF extraction + clause-aware chunking]
     PDF --> IDX[Embeddings + FAISS<br/>all-MiniLM-L6-v2, cosine similarity]
     IDX --> SEL[Evidence Selection<br/>top-k retrieval + sufficiency gate]
-    SEL -->|evidence found| LLM[Local LLM<br/>Qwen2.5-1.5B via llama.cpp]
+    SEL -->|evidence found| LLM[Local LLM<br/>Qwen2.5-3B via llama.cpp]
     SEL -->|evidence too weak| ABSTAIN1[Abstain — no LLM call made]
     LLM --> TRUST["🛡️ Citation Validation + Guardrails<br/>(app-controlled, not the LLM)"]
     TRUST --> ANSWER[Verified Answer + Source Evidence]
@@ -68,7 +68,7 @@ Before the LLM is even called, a Python-level relevance check on the retrieval s
 The LLM selects a short label (`E1`/`E2`/`E3`); the application resolves that label back to the real, stored clause/page/section. There is no code path by which the LLM's own text can become a displayed clause number or page number.
 
 ### Citation validation
-- An `evidence_id` must exist, belong to the evidence actually supplied for that question, and belong to the active policy document.
+- An `evidence_id` must exist, belong to the evidence actually supplied for that question, and belong to the active policy document (cosmetic formatting like `[E1]` vs `E1` is normalized — recognizing an equivalent label, never loosening which labels count as valid).
 - A claimed direct quote is checked against the source text (exact match → whitespace/punctuation-normalized match); if neither succeeds, the UI shows a verified excerpt taken directly from the stored clause instead — never an unverified "quote."
 - Numbers in the answer (waiting periods, day counts) that don't appear anywhere in the cited evidence get flagged and the answer is downgraded to a safe fallback.
 
@@ -83,39 +83,42 @@ A `Covered`/`Explicitly Excluded` status is cross-checked against clause-level m
 
 ## Evaluation
 
-Methodology and full results: [`docs/evaluation.md`](docs/evaluation.md). Summary:
+Methodology and full results, including a candid account of two evaluation-code bugs found and fixed along the way: [`docs/evaluation.md`](docs/evaluation.md). Summary of the current, corrected numbers:
 
 A 41-question golden dataset (hand-verified against the actual test policy, not LLM-generated) covering coverage, exclusions, waiting periods, eligibility, ambiguous/broad questions, unsupported topics, and conflict/exception cases was run through the **real, complete pipeline** — real retrieval, real local LLM calls, real guardrails.
 
-| Metric | Baseline | After two guardrail fixes (current) |
+| Metric | Original baseline (1.5B) | Current default (3B) |
 |---|---|---|
-| Answer Accuracy | 36.6% | 34.1% |
-| Status Accuracy | 56.1% | 53.7% |
-| Citation Accuracy | 73.3% | 66.7% |
+| Answer Accuracy | 36.6% | **39.0%** |
+| Status Accuracy | 56.1% | 56.1% |
+| Citation Accuracy | 73.3% | **73.3%** |
 | Retrieval Success Rate | 100% | 100% |
-| Appropriate Abstention Rate | 85.7% | 85.7% |
-| **Wrong-but-Confident Rate** | **7.3%** | **0.0%** |
-| Avg. response time | 3.3s | 3.1s |
+| Appropriate Abstention Rate | 85.7% | **100%** |
+| **Wrong-but-Confident Rate** | **4.9%*** | **0.0%** |
+| Avg. response time | 3.3s | 6.5s |
 
-**The initial evaluation found the dominant failure was the LLM being too cautious (safe), but a 7.3% Wrong-but-Confident rate (dangerous) traced to one specific pattern: clauses stating a general rule and an exception in one sentence** (e.g. *"excluded unless required to treat an accidental injury"*), where the LLM applied the general rule to a question specifically describing the exception's own scenario. Two targeted, deterministic fixes were made and re-measured (never assumed):
+*\*Corrected from an initially-reported 7.3% after a classification bug in the evaluation itself was found and fixed — see below.*
 
-1. **A conditional-exception guardrail** — cross-checks whether a question's wording overlaps with a cited clause's exception condition before accepting an `Explicitly Excluded` status sourced from it.
-2. **A bare-status-echo check** — rejects a response where the answer text is just a status label repeated back (e.g. literally "Insufficient Evidence"), a reproducible glitch found during this same investigation.
+**The path here, briefly (full detail with every traced example in `docs/evaluation.md`):**
 
-**Result: Wrong-but-Confident dropped from 7.3% to 0.0%.** Raw accuracy dipped slightly (36.6%→34.1%) — expected and acceptable: converting a dangerous wrong-but-confident answer into a safe abstention can only reduce "confident correctness," never increase it. That is the trade this project is explicitly built to make. Full before/after detail: [`docs/evaluation.md`](docs/evaluation.md).
+1. The first evaluation run found the dominant failure was the LLM being too cautious (safe), but a handful of cases were **Wrong-but-Confident** (dangerous) — traced to clauses stating a general rule and an exception in one sentence (e.g. *"excluded unless required to treat an accidental injury"*). Added a guardrail cross-checking the question against a clause's own exception condition, plus a check catching the LLM echoing a bare status label as its "answer." **Wrong-but-Confident: 4.9% → 0%** (re-verified by tracing each case individually).
+2. Testing **Qwen2.5-3B** as a swap-in replacement surfaced a real parsing gap (the 3B model formats citations as `[E1]`, not `E1` — a fix, not a loosening) and — independently — a genuine bug in the *evaluation's own scoring*: it wasn't treating a correct, safe `Not Mentioned` answer as an abstention, so it briefly mis-scored one as Wrong-but-Confident. Fixed both. Recomputing every historical run from stored data (no new LLM calls needed) showed the ORIGINAL 1.5B baseline was actually 4.9%, not the 7.3% first reported — corrected above rather than left standing.
+3. **Net result: the 3B model beats the 1.5B model on every accuracy metric while keeping an identical, clean 0% Wrong-but-Confident rate** — at the cost of roughly 2x response time and ~700MB more RAM. Made it the new default.
 
-**This project does not claim production readiness.** A 34.1% raw answer-accuracy rate on a 41-question dataset is not a production-grade number, and is reported as such — even though the safety-critical metric is now clean.
+**Why accuracy sits at 39%, not 80%+ (also in `docs/evaluation.md`):** 34% of the dataset (14/41 questions) is *deliberately* unsupported or ambiguous — abstaining on those is the correct behavior, not a miss, which caps the realistic ceiling well below 100%. Of the remaining 27 questions, 11 failures are **100% the same safe direction** (the model hedges to `Insufficient Evidence` on a paraphrased or conditional-exception question it can't confidently resolve) — zero are confidently wrong. Pushing accuracy further would mean either a substantially more capable model (7B+ starts to strain 8GB RAM) or making the system guess more often on uncertain cases — which would directly reintroduce the Wrong-but-Confident risk this whole evaluation exists to catch. That trade-off is deliberate, not an oversight.
+
+**This project does not claim production readiness.** A 39% raw answer-accuracy rate on a 41-question dataset is not a production-grade number, and is reported as such — even though the safety-critical metric is clean and the reasons for the accuracy ceiling are understood and documented, not hand-waved.
 
 ## Quick Start (Windows)
 
-Requires Python 3.11+ and ~2GB free disk space (mostly the model). No paid API, no cloud account, no GPU required.
+Requires Python 3.11+ and ~3GB free disk space (mostly the model). No paid API, no cloud account, no GPU required.
 
 ```powershell
 git clone <this-repo>
 cd insurance-policy-explainer
 
 setup.bat            REM one-time: creates venv, installs dependencies
-download_model.bat   REM one-time: downloads the local LLM (~1GB, from Hugging Face)
+download_model.bat   REM one-time: downloads the local LLM (~2.1GB, from Hugging Face)
 run_app.bat          REM starts the LLM server + the Streamlit app
 ```
 
@@ -185,7 +188,7 @@ insurance-policy-explainer/
 ## Limitations
 
 - Tested against one synthetic sample policy and a 41-question dataset — not yet validated against a large, diverse set of real-world policy documents and formats.
-- The 1.5B local LLM is the main accuracy ceiling; a larger model (3B+) would likely reduce both the "too cautious" and "wrong-but-confident" rates, at the cost of slower responses on modest hardware.
+- Even at 3B, the LLM still can't reliably connect a paraphrased question to a differently-worded clause, or resolve a general-rule-plus-exception sentence — it now fails safely on these (hedges) rather than dangerously (guesses wrong), but doesn't get them *right*. A 7B+ model might help further but starts to strain 8GB RAM.
 - Guardrail metadata (exclusion detection) is keyword/structure-based, not a semantic understanding of legal language — it can miss an exclusion phrased unusually.
 - Evidence highlighting depends on PyMuPDF's text search; it correctly falls back to "couldn't highlight, here's the verified text" rather than faking a match, but can't highlight a clause whose exact wording doesn't literally appear on the PDF page (e.g. from encoding artifacts in unusual PDFs).
 - Single-user, single-machine design — no authentication, no multi-user document isolation, no production-grade scaling.

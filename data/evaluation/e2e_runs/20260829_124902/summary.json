@@ -1,0 +1,37 @@
+{
+  "run_id": "20260829_124902",
+  "timestamp": "2026-08-29T12:49:06.173480+00:00",
+  "policy_name": "ABC Health Shield Policy",
+  "document_id": "f7d94831f5548ab5",
+  "metrics": {
+    "total_questions": 41,
+    "answer_accuracy": 0.24390243902439024,
+    "status_accuracy": 0.4146341463414634,
+    "citation_accuracy": 0.4,
+    "retrieval_success_rate": 1.0,
+    "evidence_selection_success_rate": 1.0,
+    "appropriate_abstention_rate": 0.7142857142857143,
+    "incorrect_abstention_rate": 0.18518518518518517,
+    "wrong_but_confident_rate": 0.024390243902439025,
+    "citation_failure_rate": 0.0,
+    "validation_failure_rate": 0.36585365853658536,
+    "avg_response_time_seconds": 12.467073190503005,
+    "median_response_time_seconds": 9.075061798095703,
+    "max_response_time_seconds": 60.24233436584473,
+    "avg_prompt_tokens": 300.05128205128204,
+    "avg_completion_tokens": 37.743589743589745,
+    "avg_chunks_retrieved": 3.0,
+    "questions_answered_with_zero_llm_calls": 2
+  },
+  "failure_stage_counts": {
+    "Generation Failure": 20,
+    "Guardrail Failure": 1
+  },
+  "classification_counts": {
+    "Validation Failure": 15,
+    "Correct": 10,
+    "Appropriate Abstention": 10,
+    "Incorrect Abstention": 5,
+    "Wrong-but-Confident": 1
+  }
+}

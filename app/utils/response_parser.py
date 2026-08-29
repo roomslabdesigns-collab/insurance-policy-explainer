@@ -135,7 +135,12 @@ def parse_llm_response(raw_response: str) -> ParsedAnswer:
     evidence_id = fields.get("evidence_id")
 
     if isinstance(evidence_id, str):
-        evidence_id = evidence_id.strip().strip('"').rstrip(".,")
+        # Strip cosmetic wrapping some models add around the label (e.g. the
+        # 3B model consistently writes "[E1]" instead of the bare "E1" asked
+        # for) -- this recognizes an equivalent label, it does not loosen
+        # which labels are considered valid; validate_evidence_id still
+        # rejects anything that isn't a real key in the supplied label_map.
+        evidence_id = evidence_id.strip().strip('"').rstrip(".,").strip("[]").strip()
         if evidence_id.upper() in ("NONE", "N/A", ""):
             evidence_id = None
 
