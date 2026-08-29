@@ -36,9 +36,15 @@ Twelve phases, each independently tested before the next began: PDF extraction �
 
 I also found and fixed two bugs *in the evaluation code itself* while preparing this case study — a failure-stage mislabeling and a dataset row that silently produced a false "retrieval failure." I'm documenting that here deliberately: an evaluation system that isn't itself scrutinized can be as misleading as the system it's evaluating.
 
-## Iterations — What I'd Improve Next
+## Iterations
 
-1. **Extend clause metadata with a third signal: "contains a conditional exception"** (detecting "unless", "except", "only if"), and require the guardrail to check whether the answer addresses that condition before accepting a substantive status. This is a data-driven fix in the same spirit as the exclusion-metadata guardrail that already worked once — not another prompt-wording attempt.
-2. **Test against real, diverse policy documents.** Everything here was validated against one synthetic 7-page policy. Real policies vary far more in structure, and clause-detection regex tuned against one document's formatting will need re-validation.
-3. **A larger local model (3B) as an A/B comparison** against the current 1.5B, to see whether the "too cautious" and "wrong-but-confident" rates both improve, and by how much, against the real cost in response latency on 8GB hardware.
+**What I did after the first evaluation.** The item I originally listed here as the top future priority — a metadata-based conditional-exception guardrail — I actually implemented and measured, rather than leaving as a proposal. Result: Wrong-but-Confident dropped from 7.3% to 0%, verified by tracing the specific failing questions individually before and after, not just by reading the topline number. Along the way, re-measuring surfaced a *second*, unrelated bug (the LLM occasionally echoing a bare status label as its "answer") that had actually appeared once in the very first baseline run without being investigated — fixed with a second small, targeted check. Full mechanics and the exact before/after numbers: `docs/evaluation.md`.
+
+The pattern I'd point to as the actual product lesson here: **the fix that worked was found by asking "why" of a bad number, twice** — first tracing the Wrong-but-Confident cases to one clause pattern, then noticing during re-verification that a "fixed" run still had a different bug hiding in what looked like noise. Neither fix would have been found by looking at the accuracy percentage alone.
+
+## What I'd Improve Next
+
+1. **Test against real, diverse policy documents.** Everything here was validated against one synthetic 7-page policy. Real policies vary far more in structure, and clause-detection regex tuned against one document's formatting will need re-validation.
+2. **A larger local model (3B) as an A/B comparison** against the current 1.5B, to see whether the "too cautious" (Generation Failure) rate improves, and by how much, against the real cost in response latency on 8GB hardware.
+3. **Broaden the conditional-exception guardrail** beyond single-sentence exceptions — it doesn't yet handle an exception stated in a separate clause from the general rule it modifies.
 4. **An independent golden-dataset author.** I built the system and wrote its own test — a second reviewer authoring ground truth would be a materially stronger evaluation.

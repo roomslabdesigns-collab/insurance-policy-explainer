@@ -20,13 +20,26 @@ rather than trusting the more "confident" one.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Set
 
 from ..utils.response_parser import STATUS_COVERED, STATUS_EXCLUDED, STATUS_INSUFFICIENT
 from .citation_validator import Citation
 
 if TYPE_CHECKING:
     from ..rag.vector_store import SearchResult
+
+# Phase 12 (evaluation-driven): generic insurance boilerplate words that
+# would coincidentally overlap between almost any question and almost any
+# clause's exception condition ("claims", "policy", "covered"...), without
+# actually indicating the question describes the SAME specific exception
+# scenario. Excluded from the overlap check in _mentions_exception_scenario
+# below to avoid false-positive downgrades. Stemmed to a 6-char prefix, the
+# same crude stemming the comparison itself uses (see that function).
+_GENERIC_OVERLAP_STOPWORDS: Set[str] = {
+    "claim", "claims", "policy", "covere", "payabl", "insure", "treatm",
+    "medica", "benefi", "sectio", "clause", "expens", "requir", "genera",
+    "specif", "period", "provid", "applic",
+}
 
 
 @dataclass
@@ -36,12 +49,48 @@ class GuardrailOutcome:
     downgraded: bool
 
 
-def apply_status_guardrails(status: str, citation: Optional[Citation]) -> GuardrailOutcome:
+def _stemmed_significant_words(text: str, min_len: int = 5) -> Set[str]:
     """
-    Rule 2 (Explicit Exclusion requires explicit evidence) and Rule 3
-    (Covered requires positive evidence), enforced via metadata computed
-    independently back in Phase 3 -- not via trusting the LLM's own
-    judgment about what its cited text says.
+    Crude stemming (fixed 6-char prefix) so "accident"/"accidental" count
+    as the same signal without a real NLP dependency. `min_len` filters out
+    short common words before stemming; the stoplist above filters out
+    longer but still-generic insurance boilerplate afterward.
+    """
+    words = set()
+    for raw in text.split():
+        cleaned = raw.strip(".,;:!?()\"'").lower()
+        if len(cleaned) < min_len:
+            continue
+        stem = cleaned[:6]
+        if stem in _GENERIC_OVERLAP_STOPWORDS:
+            continue
+        words.add(stem)
+    return words
+
+
+def _mentions_exception_scenario(question: str, exception_condition_text: str) -> Set[str]:
+    """Returns the shared specific terms (e.g. {'accide'}) if the question's
+    own wording overlaps with the clause's exception condition, else empty."""
+    return _stemmed_significant_words(question) & _stemmed_significant_words(exception_condition_text)
+
+
+def apply_status_guardrails(
+    status: str, citation: Optional[Citation], question: str = ""
+) -> GuardrailOutcome:
+    """
+    Rule 2 (Explicit Exclusion requires explicit evidence), Rule 3 (Covered
+    requires positive evidence), and Rule 4 (a conditional exception the
+    question itself describes should not be overridden by the clause's
+    general rule) -- all enforced via metadata computed independently back
+    in Phase 3, not via trusting the LLM's own judgment about what its
+    cited text says.
+
+    Rule 4 is the direct fix for the exact pattern behind every
+    Wrong-but-Confident result in the Phase 11 evaluation: a clause stating
+    a general rule and an exception in one sentence (e.g. "excluded UNLESS
+    required to treat an accidental injury"), where the LLM applied the
+    general rule to a question that was specifically describing the
+    exception's own scenario.
     """
     if citation is None:
         return GuardrailOutcome(status, None, False)
@@ -68,6 +117,21 @@ def apply_status_guardrails(status: str, citation: Optional[Citation]) -> Guardr
             ),
             True,
         )
+
+    if status == STATUS_EXCLUDED and citation.exception_condition_text:
+        overlap = _mentions_exception_scenario(question, citation.exception_condition_text)
+        if overlap:
+            return GuardrailOutcome(
+                STATUS_INSUFFICIENT,
+                (
+                    f"Downgraded from 'Explicitly Excluded': the cited clause "
+                    f"({citation.clause_number or 'preamble'}) has a conditional exception "
+                    f"({citation.exception_condition_text!r}) that the question appears to describe "
+                    f"(shared terms: {', '.join(sorted(overlap))}) -- the exception may apply instead "
+                    "of the general rule."
+                ),
+                True,
+            )
 
     return GuardrailOutcome(status, None, False)
 

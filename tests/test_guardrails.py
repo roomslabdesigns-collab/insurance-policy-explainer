@@ -31,7 +31,7 @@ from app.pdf_processing import build_clauses, extract_pdf
 from app.rag import build_or_load_index, generate_grounded_response
 from app.rag.retrieval import retrieve
 from app.rag.vector_store import SearchResult
-from app.utils import STATUS_COVERED, STATUS_EXCLUDED
+from app.utils import STATUS_COVERED, STATUS_EXCLUDED, parse_llm_response
 from app.validation import (
     apply_status_guardrails,
     build_citation,
@@ -65,6 +65,7 @@ def make_result(document_id: str, **overrides) -> SearchResult:
         text="This is a plain statement with no exclusion wording at all.",
         is_exclusion_section=False,
         contains_exclusion_language=False,
+        exception_condition_text="",
     )
     defaults.update(overrides)
     return SearchResult(**defaults)
@@ -130,6 +131,54 @@ def run_unit_tests(policy_index) -> bool:
     passed &= check(
         f"'Covered' citing an exclusion-section clause is downgraded (-> {outcome3.status})", outcome3.downgraded
     )
+    print()
+
+    print("=== Test G (Phase 12): conditional-exception guardrail ===")
+    print("  (Fixes the exact pattern behind Phase 11's Wrong-but-Confident cases)")
+    exception_citation = build_citation(
+        make_result(
+            document_id, is_exclusion_section=True, contains_exclusion_language=True,
+            clause_number="4.1",
+            exception_condition_text="required to treat an accidental injury",
+        ),
+        "irrelevant", POLICY_NAME, POLICY_VERSION,
+    )
+    outcome4 = apply_status_guardrails(
+        STATUS_EXCLUDED, exception_citation,
+        question="Does cosmetic surgery after an accident get covered?",
+    )
+    passed &= check(
+        f"'Explicitly Excluded' is downgraded when the question describes the clause's own "
+        f"exception scenario (-> {outcome4.status})",
+        outcome4.downgraded,
+    )
+
+    outcome5 = apply_status_guardrails(
+        STATUS_EXCLUDED, exception_citation, question="Is cosmetic surgery excluded?",
+    )
+    passed &= check(
+        "'Explicitly Excluded' is KEPT when the question does NOT describe the exception scenario",
+        not outcome5.downgraded,
+    )
+
+    outcome6 = apply_status_guardrails(
+        STATUS_EXCLUDED, exception_citation,
+        question="Are claims payable if I get sick within 90 days of buying the policy?",
+    )
+    passed &= check(
+        "No false-positive downgrade from generic word overlap ('claims'/'policy' are stoplisted)",
+        not outcome6.downgraded,
+    )
+    print()
+
+    print("=== Test H (Phase 12): bare status-label echo is rejected as malformed ===")
+    glitched = parse_llm_response("STATUS: Not Mentioned\nEVIDENCE_ID: NONE\nANSWER: Insufficient Evidence")
+    passed &= check(
+        "A bare status-label echo as the answer is treated as invalid format",
+        not glitched.is_valid_format,
+    )
+    normal = parse_llm_response("STATUS: Covered\nEVIDENCE_ID: E1\nANSWER: Yes, this is covered under the cited clause.")
+    passed &= check("A real explanatory answer is still accepted normally", normal.is_valid_format)
     print()
 
     print("=== Test F: Conflicting evidence (exclusion elsewhere) is surfaced, not hidden ===")

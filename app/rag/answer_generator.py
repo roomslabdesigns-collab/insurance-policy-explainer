@@ -294,7 +294,7 @@ def generate_grounded_response(
             )
 
         # --- Gate 5: status guardrails (🛡️ section 7, rules 2 & 3) ---
-        guardrail = apply_status_guardrails(final_status, citation)
+        guardrail = apply_status_guardrails(final_status, citation, question)
         final_status = guardrail.status
         status_was_downgraded = guardrail.downgraded
         if guardrail.downgraded:

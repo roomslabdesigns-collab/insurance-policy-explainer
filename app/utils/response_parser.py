@@ -64,6 +64,20 @@ def _normalize_status(raw: str) -> Optional[str]:
     return None
 
 
+def _is_bare_status_echo(answer_text: str) -> bool:
+    """
+    Catches a reproducible glitch seen twice across evaluation runs: the
+    model sometimes emits a bare status word/phrase as the ANSWER itself
+    (answer_text literally "Insufficient Evidence", with no explanation)
+    instead of an actual sentence. A one-to-three-word echo of a status
+    label is never a real answer, so this is treated as an unparseable
+    response -- degrading safely to a validation-failure fallback --
+    rather than trusted and shown to the user at face value.
+    """
+    cleaned = answer_text.strip().strip(".").lower()
+    return cleaned in _STATUS_ALIASES
+
+
 def _try_parse_json(text: str) -> dict:
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
@@ -126,7 +140,9 @@ def parse_llm_response(raw_response: str) -> ParsedAnswer:
             evidence_id = None
 
     status = _normalize_status(status_raw) if status_raw else None
-    is_valid_format = status is not None and bool(answer_text)
+    is_valid_format = (
+        status is not None and bool(answer_text) and not _is_bare_status_echo(answer_text)
+    )
 
     return ParsedAnswer(
         status=status,

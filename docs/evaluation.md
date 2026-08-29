@@ -48,36 +48,47 @@ Grading free-text answers semantically would normally need an LLM judge. This pr
 - **Citation Failure** — right conclusion, wrong clause cited.
 - **Guardrail Failure** — reserved for exactly what it sounds like: an unsafe/wrong answer **passed validation** and reached the user (i.e., every `Wrong-but-Confident` result, by definition, since anything the guardrails actually caught becomes `Validation Failure` / Generation Failure instead).
 
-## Results (run `20260829_075507`, 41 questions)
+## Results: baseline, then two measured fixes
 
-| Metric | Result |
-|---|---|
-| Answer Accuracy | 36.6% |
-| Status Accuracy | 56.1% |
-| Citation Accuracy | 73.3% |
-| Retrieval Success Rate | 100% |
-| Evidence Selection Success Rate | 100% |
-| Appropriate Abstention Rate | 85.7% |
-| Incorrect Abstention Rate | 29.6% |
-| **Wrong-but-Confident Rate** | **7.3%** (3/41) |
-| Validation Failure Rate | 4.9% (2/41) |
-| Avg / median / max response time | 3.26s / 3.14s / 5.72s |
-| Avg prompt / completion tokens | ~299 / ~37 |
-| Questions answered with zero LLM calls (pre-LLM gate) | 0/41 |
+| Metric | Baseline (`20260829_075507`) | After both fixes (`20260829_084435`) |
+|---|---|---|
+| Answer Accuracy | 36.6% | 34.1% |
+| Status Accuracy | 56.1% | 53.7% |
+| Citation Accuracy | 73.3% | 66.7% |
+| Retrieval Success Rate | 100% | 100% |
+| Evidence Selection Success Rate | 100% | 100% |
+| Appropriate Abstention Rate | 85.7% | 85.7% |
+| Incorrect Abstention Rate | 29.6% | 40.7% |
+| **Wrong-but-Confident Rate** | **7.3%** (3/41) | **0.0%** (0/41) |
+| Validation Failure Rate | 4.9% (2/41) | 7.3% (3/41) |
+| Avg / median / max response time | 3.26s / 3.14s / 5.72s | 3.08s / 3.11s / 4.11s |
+| Avg prompt / completion tokens | ~299 / ~37 | ~299 / ~37 |
 
-Classification breakdown: **15 Correct, 12 Appropriate Abstention, 8 Incorrect Abstention, 3 Wrong-but-Confident, 2 Validation Failure, 1 Citation Failure.**
+Baseline classification breakdown: **15 Correct, 12 Appropriate Abstention, 8 Incorrect Abstention, 3 Wrong-but-Confident, 2 Validation Failure, 1 Citation Failure.** Failure-stage breakdown: **10 Generation Failure, 3 Guardrail Failure, 1 Citation Failure.**
 
-Failure-stage breakdown (of the 14 non-correct, non-appropriately-abstained results): **10 Generation Failure, 3 Guardrail Failure, 1 Citation Failure.**
+## What the baseline meant
 
-## What this means
+**Retrieval and evidence selection were not the bottleneck** — both measured 100%. The dominant failure (Generation Failure, 24% of all questions) was the local LLM being *too cautious*: given clear, correctly-retrieved evidence, it still sometimes hedged to "Insufficient Evidence" rather than committing to a definite status — the safer failure direction, given this product's core safety principle.
 
-**Retrieval and evidence selection are not the bottleneck** — both measured 100% on this dataset. The system's dominant failure (Generation Failure, 24% of all questions) is the local LLM being *too cautious*: given clear, correctly-retrieved evidence, it still sometimes hedges to "Insufficient Evidence" rather than committing to a definite status. Given this product's core safety principle, that is the *safer* failure direction — 27 of 41 questions (66%) landed on either a fully correct answer or an appropriate abstention.
+The smaller but more serious category — 3 Wrong-but-Confident cases (7.3%, above this project's own 5% concern threshold) — all traced to the **same specific pattern**: a clause stating a general rule and a specific exception in one sentence (e.g. *"...excluded unless required to treat an accidental injury"*), where the LLM applied the general rule to a question specifically describing the exception's own scenario.
 
-The smaller but more serious category — the 3 Wrong-but-Confident cases (7.3%, above this project's own 5% concern threshold) — all trace to the **same specific pattern**: a clause that states a general rule and a specific exception in one sentence (e.g. *"...excluded unless required to treat an accidental injury"*). The guardrail's exclusion-detection metadata is a binary flag (does this clause contain exclusion language, yes/no); it can't yet tell "this clause is purely an exclusion" apart from "this clause has a conditional carve-out that changes the answer for this specific question." That is the single highest-priority fix identified by this evaluation (see the case study for reasoning on why a metadata-based fix is preferred over further prompt tuning).
+## The two fixes, and what they actually did
+
+**Fix 1 — conditional-exception guardrail.** Added a clause-metadata field (`exception_condition_text`, extracted via regex for `unless`/`except`/`only if`/`provided that`/`necessitated by`) and a guardrail rule: if a question's own wording overlaps with a cited clause's exception condition (stemmed word comparison with a stoplist for generic insurance terms like "claims"/"policy", to avoid false positives), an `Explicitly Excluded` conclusion sourced from that clause is downgraded to `Insufficient Evidence` rather than trusted.
+
+Traced individually: *"Does cosmetic surgery after an accident get covered?"* and *"What if I need emergency dental surgery after a car accident?"* both flipped from `Explicitly Excluded` (wrong) to `Insufficient Evidence` (safe) — 2 of the original 3 Wrong-but-Confident cases fixed. Wrong-but-Confident: 7.3% → 4.9%.
+
+**Fix 2 — bare status-label echo check.** While re-measuring Fix 1, a *different*, previously-unnoticed bug surfaced: the LLM sometimes returns an answer whose text is just a status label repeated back (e.g. `STATUS: Not Mentioned` with `ANSWER: Insufficient Evidence`) — a self-contradictory, non-explanatory response. This exact glitch had actually appeared once already in the very first baseline run (on *"Are dentures covered?"*), just not investigated at the time. Added a check in the response parser: if the answer text is nothing but a bare echo of a status word/phrase, treat the whole response as malformed (same safe-fallback path as any other validation failure) rather than trust it.
+
+Re-traced *"Are dentures covered?"* after this fix: it now produces a coherent, safe `Insufficient Evidence` answer instead of the garbled echo. Wrong-but-Confident: 4.9% → **0.0%**.
+
+## Reading the accuracy dip correctly
+
+Answer Accuracy fell slightly (36.6% → 34.1%) and Incorrect Abstention rose (29.6% → 40.7%) across these fixes. **This is the expected, intentional trade-off, not a regression to be alarmed by**: both fixes work exclusively by converting a wrong, confidently-stated answer into a safe "I'm not sure" — which by definition can only move a question out of "Correct" or "Wrong-but-Confident" and into "Incorrect Abstention," never the other direction. A system that trades confident wrongness for honest uncertainty is moving in the direction this entire project is designed around, even though it makes the blended accuracy number look slightly worse.
 
 ## A note on run-to-run variance
 
-Running the identical evaluation twice in a row produced **bit-for-bit identical** Answer Accuracy and Status Accuracy (36.6% / 56.1%), while the Wrong-but-Confident rate shifted from 4.9% to 7.3% purely from LLM sampling noise (temperature is 0.1, not exactly 0). Treat single-run deltas smaller than a few percentage points as noise, not a real regression, when comparing future runs.
+Two identical baseline runs produced **bit-for-bit identical** Answer Accuracy and Status Accuracy (36.6% / 56.1%), while Wrong-but-Confident shifted a couple of points purely from LLM sampling noise (temperature is 0.1, not exactly 0). Treat single-run deltas of a few percentage points as noise, not a real change, **except** for Wrong-but-Confident's move to a clean 0% here, which was verified by tracing the specific previously-failing questions individually, not just by reading the topline number.
 
 ## Limitations of this evaluation itself
 

@@ -44,6 +44,7 @@ class Citation:
     quote_match_type: str       # "exact" | "normalized" | "app_selected_excerpt"
     is_exclusion_section: bool
     contains_exclusion_language: bool
+    exception_condition_text: str  # "" if the clause has no unless/except/only-if condition
 
 
 @dataclass
@@ -147,4 +148,5 @@ def build_citation(
         quote_match_type=match_type,
         is_exclusion_section=result.is_exclusion_section,
         contains_exclusion_language=result.contains_exclusion_language,
+        exception_condition_text=result.exception_condition_text,
     )

@@ -73,10 +73,13 @@ The LLM selects a short label (`E1`/`E2`/`E3`); the application resolves that la
 - Numbers in the answer (waiting periods, day counts) that don't appear anywhere in the cited evidence get flagged and the answer is downgraded to a safe fallback.
 
 ### Guardrails
-A `Covered`/`Explicitly Excluded` status is cross-checked against clause-level metadata computed independently during PDF processing (`is_exclusion_section`, `contains_exclusion_language`) — signals the LLM never sees. A mismatch (e.g. `Covered` citing a clause from the Exclusions section) is automatically downgraded to `Insufficient Evidence` rather than shown as-is.
+A `Covered`/`Explicitly Excluded` status is cross-checked against clause-level metadata computed independently during PDF processing — signals the LLM never sees:
+- `is_exclusion_section` / `contains_exclusion_language` — a mismatch (e.g. `Covered` citing a clause from the Exclusions section) is downgraded to `Insufficient Evidence`.
+- `exception_condition_text` — when a clause states a general rule and a specific exception in one sentence (e.g. *"excluded **unless** required to treat an accidental injury"*), and the user's question itself describes that exception's scenario, an `Explicitly Excluded` conclusion is downgraded rather than trusted — this was added after the first evaluation run traced every Wrong-but-Confident case to exactly this pattern (see Evaluation).
+- A bare status-label echoed back as the "answer" (e.g. the text literally reading *"Insufficient Evidence"* with no explanation) is treated as a malformed response, not a real answer.
 
 ### Honest limitations
-**These guardrails reduce, but do not eliminate, wrong answers.** The measured evaluation below found a 7.3% Wrong-but-Confident rate — cases where the system presented a wrong status as if verified. The keyword/metadata heuristics behind the guardrails can miss an exclusion phrased unusually, and a small local LLM can still misjudge a clause that mixes a general rule with a specific exception in one sentence (its most common real failure pattern — see Evaluation below). This system does not claim to have solved hallucination; it claims to have built a pipeline that measures it, catches a meaningful share of it, and fails toward caution rather than confidence when it doesn't.
+**These guardrails reduce, but do not eliminate, wrong answers.** The keyword/metadata heuristics can still miss an exclusion phrased unusually that this dataset didn't happen to test, and a small local LLM can still misjudge evidence in ways no current guardrail checks for — the measured 0% Wrong-but-Confident rate (see Evaluation) reflects this specific 41-question run, not a guarantee against every future case. This system does not claim to have solved hallucination; it claims to have built a pipeline that measures it, catches what it's specifically designed to catch, and fails toward caution rather than confidence on everything else.
 
 ## Evaluation
 
@@ -84,19 +87,24 @@ Methodology and full results: [`docs/evaluation.md`](docs/evaluation.md). Summar
 
 A 41-question golden dataset (hand-verified against the actual test policy, not LLM-generated) covering coverage, exclusions, waiting periods, eligibility, ambiguous/broad questions, unsupported topics, and conflict/exception cases was run through the **real, complete pipeline** — real retrieval, real local LLM calls, real guardrails.
 
-| Metric | Result |
-|---|---|
-| Answer Accuracy | 36.6% |
-| Status Accuracy | 56.1% |
-| Citation Accuracy | 73.3% |
-| Retrieval Success Rate | 100% |
-| Appropriate Abstention Rate | 85.7% |
-| **Wrong-but-Confident Rate** | **7.3%** |
-| Avg. response time | 3.3s |
+| Metric | Baseline | After two guardrail fixes (current) |
+|---|---|---|
+| Answer Accuracy | 36.6% | 34.1% |
+| Status Accuracy | 56.1% | 53.7% |
+| Citation Accuracy | 73.3% | 66.7% |
+| Retrieval Success Rate | 100% | 100% |
+| Appropriate Abstention Rate | 85.7% | 85.7% |
+| **Wrong-but-Confident Rate** | **7.3%** | **0.0%** |
+| Avg. response time | 3.3s | 3.1s |
 
-**What this actually means:** retrieval is not the bottleneck (100% success) — the dominant failure mode (24% of questions) is the local LLM being *too cautious*, hedging into "Insufficient Evidence" on questions with clear evidence available. Given this product's core safety principle, that is the safer failure direction. The more serious 7.3% Wrong-but-Confident rate is concentrated in one specific, well-understood pattern: clauses that mix a general rule with an accident/exception carve-out in one sentence (e.g. *"excluded unless required to treat an accidental injury"*) — the guardrail's current exclusion-metadata flags can't yet distinguish "this clause is purely an exclusion" from "this clause has a conditional exception," so a wrong conclusion sourced from such a clause isn't always caught. That is the top-priority item in Future Improvements below.
+**The initial evaluation found the dominant failure was the LLM being too cautious (safe), but a 7.3% Wrong-but-Confident rate (dangerous) traced to one specific pattern: clauses stating a general rule and an exception in one sentence** (e.g. *"excluded unless required to treat an accidental injury"*), where the LLM applied the general rule to a question specifically describing the exception's own scenario. Two targeted, deterministic fixes were made and re-measured (never assumed):
 
-**This project does not claim production readiness.** A 36.6% raw answer-accuracy rate and a >5% Wrong-but-Confident rate on a 41-question dataset are not production-grade numbers, and are reported as such.
+1. **A conditional-exception guardrail** — cross-checks whether a question's wording overlaps with a cited clause's exception condition before accepting an `Explicitly Excluded` status sourced from it.
+2. **A bare-status-echo check** — rejects a response where the answer text is just a status label repeated back (e.g. literally "Insufficient Evidence"), a reproducible glitch found during this same investigation.
+
+**Result: Wrong-but-Confident dropped from 7.3% to 0.0%.** Raw accuracy dipped slightly (36.6%→34.1%) — expected and acceptable: converting a dangerous wrong-but-confident answer into a safe abstention can only reduce "confident correctness," never increase it. That is the trade this project is explicitly built to make. Full before/after detail: [`docs/evaluation.md`](docs/evaluation.md).
+
+**This project does not claim production readiness.** A 34.1% raw answer-accuracy rate on a 41-question dataset is not a production-grade number, and is reported as such — even though the safety-critical metric is now clean.
 
 ## Quick Start (Windows)
 
@@ -184,7 +192,7 @@ insurance-policy-explainer/
 
 ## Roadmap (not implemented — see [`docs/case_study.md`](docs/case_study.md) for reasoning)
 
-**V2:** multi-policy comparison, policy version tracking, better conflict/exception detection (the top item from Evaluation above).
+**V2:** multi-policy comparison, policy version tracking, and further conflict/exception detection beyond the specific pattern already fixed (see Evaluation) — e.g. exceptions spanning multiple sentences or clauses rather than one.
 **V3:** a larger evaluation dataset across multiple real policies, a human-review workflow for flagged answers, multilingual support.
 **A real production version** would additionally need: authentication and per-user document isolation, encrypted document storage, monitoring/alerting on the safety metrics measured here, a scalable vector database, and professional legal/compliance review — none of which are portfolio-appropriate to build without an actual insurer as a partner.
 

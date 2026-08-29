@@ -36,6 +36,19 @@ _EXCLUSION_KEYWORDS = (
     "except", "unless",
 )
 
+# Phase 12 (evaluation-driven fix): a clause stating a general rule AND a
+# specific exception in one sentence -- e.g. "excluded UNLESS required to
+# treat an accidental injury" -- was the exact pattern behind every
+# Wrong-but-Confident answer in the Phase 11 evaluation (the LLM applied
+# the general rule and ignored the exception). This regex captures the
+# exception's trigger condition (up to the next comma/sentence end) so
+# app.validation.guardrails can check whether a QUESTION describing that
+# exact scenario got the general-rule answer instead of the exception's.
+_EXCEPTION_TRIGGER_RE = re.compile(
+    r"\b(?:unless|except(?:\s+for)?|only if|provided that|subject to|necessitated by)\b\s*(.*?)(?:[,.;]|$)",
+    re.IGNORECASE,
+)
+
 # --------------------------------------------------------------------------
 # Structural line patterns
 # --------------------------------------------------------------------------
@@ -100,6 +113,7 @@ class Clause:
 
     is_exclusion_section: bool          # heading text suggests an exclusions/exceptions section
     contains_exclusion_language: bool   # chunk text itself contains exclusion-style wording
+    exception_condition_text: str       # "" if none; else the trigger condition of an unless/except/only-if clause
 
     part_index: int           # 1-based; >1 only when a clause was split for length
     part_total: int
@@ -108,6 +122,18 @@ class Clause:
 def _normalize_clause_text(text: str) -> str:
     """Flatten PDF line-wrapping into one clean sentence-flow string."""
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _extract_exception_condition(text: str) -> str:
+    """
+    First conditional-exception trigger phrase found in the clause text, or
+    "" if none. Deliberately takes only the FIRST match -- a clause with
+    multiple conditions is rare in this dataset, and the guardrail using
+    this only needs one representative condition to check a question
+    against, not an exhaustive parse of the clause's full logic.
+    """
+    match = _EXCEPTION_TRIGGER_RE.search(text)
+    return match.group(1).strip() if match else ""
 
 
 def split_oversized_text(text: str, max_chars: int = MAX_CHUNK_CHARS) -> List[str]:
@@ -209,6 +235,7 @@ def build_clauses(
                     contains_exclusion_language=any(
                         kw in part_text.lower() for kw in _EXCLUSION_KEYWORDS
                     ),
+                    exception_condition_text=_extract_exception_condition(part_text),
                     part_index=part_index,
                     part_total=part_total,
                 )

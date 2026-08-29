@@ -47,6 +47,7 @@ class SearchResult:
     text: str
     is_exclusion_section: bool
     contains_exclusion_language: bool
+    exception_condition_text: str
 
 
 @dataclass
@@ -299,6 +300,7 @@ def search_policy(
                 text=clause.text,
                 is_exclusion_section=clause.is_exclusion_section,
                 contains_exclusion_language=clause.contains_exclusion_language,
+                exception_condition_text=clause.exception_condition_text,
             )
         )
         if len(results) >= top_k:
